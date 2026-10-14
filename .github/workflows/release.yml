@@ -1,0 +1,237 @@
+name: Release
+
+# 推送 v* 标签自动构建全平台安装包并发布 GitHub Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS_arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - name: macOS_x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: dmg
+          # 22.04 构建的 AppImage 兼容更宽的 glibc 范围;若该镜像退役可改为 ubuntu-latest
+          - name: Linux_amd64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,rpm,appimage
+          - name: Windows_x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+            rpm libfuse2
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Sync version from tag
+        shell: bash
+        run: node -e '
+          const fs = require("fs");
+          const p = "src-tauri/tauri.conf.json";
+          const c = JSON.parse(fs.readFileSync(p, "utf8"));
+          if (process.env.GITHUB_REF.startsWith("refs/tags/")) {
+            c.version = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + "\n");
+            console.log("version synced:", c.version);
+          } else {
+            console.log("no tag, keep version:", c.version);
+          }'
+
+      - name: Build installers
+        shell: bash
+        run: npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          T="src-tauri/target/${{ matrix.target }}/release/bundle"
+          mkdir -p dist
+          case "${{ matrix.name }}" in
+            macOS_*)
+              cp "$T"/dmg/*.dmg "dist/Open-Noise_${VERSION}_${{ matrix.name }}.dmg"
+              ;;
+            Linux_*)
+              cp "$T"/deb/*.deb "dist/Open-Noise_${VERSION}_Linux_amd64.deb"
+              cp "$T"/rpm/*.rpm "dist/Open-Noise_${VERSION}_Linux_amd64.rpm"
+              cp "$T"/appimage/*.AppImage "dist/Open-Noise_${VERSION}_Linux_amd64.AppImage"
+              ;;
+            Windows_*)
+              cp "$T"/nsis/*-setup.exe "dist/Open-Noise_${VERSION}_Windows_x64-setup.exe"
+              cp "$T"/msi/*.msi "dist/Open-Noise_${VERSION}_Windows_x64.msi"
+              ;;
+          esac
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  build-android:
+    name: Android_arm64-v8a
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android-arm64
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Sync version from tag
+        run: node -e '
+          const fs = require("fs");
+          const p = "src-tauri/tauri.conf.json";
+          const c = JSON.parse(fs.readFileSync(p, "utf8"));
+          if (process.env.GITHUB_REF.startsWith("refs/tags/")) {
+            c.version = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+            fs.writeFileSync(p, JSON.stringify(c, null, 2) + "\n");
+            console.log("version synced:", c.version);
+          } else {
+            console.log("no tag, keep version:", c.version);
+          }'
+
+      - name: Prepare Android SDK
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-37" "build-tools;37.0.0" \
+            "ndk;27.0.12077973" >/dev/null 2>&1 || true
+
+      - name: Init Android project
+        run: npx tauri android init --ci --skip-targets-install
+
+      - name: Configure Android signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd src-tauri/gen/android
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > release.keystore
+            STORE="$(pwd)/release.keystore"
+            STORE_PASS="$ANDROID_KEYSTORE_PASSWORD"
+            ALIAS="$ANDROID_KEY_ALIAS"
+            KEY_PASS="$ANDROID_KEY_PASSWORD"
+          else
+            keytool -genkeypair -keystore ci.keystore -alias ci \
+              -keyalg RSA -keysize 2048 -validity 3650 \
+              -storepass ci-open-noise -keypass ci-open-noise \
+              -dname "CN=Open Noise CI, OU=CI, O=Open Noise, C=NA" >/dev/null 2>&1
+            STORE="$(pwd)/ci.keystore"
+            STORE_PASS="ci-open-noise"
+            ALIAS="ci"
+            KEY_PASS="ci-open-noise"
+            echo "::warning::ANDROID_KEYSTORE_BASE64 未配置,使用临时 CI keystore 签名(可安装,但不适用于应用商店上架)。"
+          fi
+          printf 'keyAlias=%s\nkeyPassword=%s\nstoreFile=%s\nstorePassword=%s\n' \
+            "$ALIAS" "$KEY_PASS" "$STORE" "$STORE_PASS" > key.properties
+
+      - name: Build APK (arm64-v8a)
+        run: npx tauri android build --target aarch64 --apk --split-per-abi
+
+      - name: Collect artifacts
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          mkdir -p dist
+          APK=$(find src-tauri/gen/android -name "*arm64-v8a*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            APK=$(find src-tauri/gen/android -name "*release*.apk" ! -name "*unsigned*" | head -1)
+          fi
+          cp "$APK" "dist/Open-Noise_${VERSION}_Android_arm64-v8a.apk"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-Android_arm64-v8a
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [build, build-android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums-sha256.txt
+          cat checksums-sha256.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false

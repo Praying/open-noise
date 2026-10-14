@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        stroke-width: 25px;
+      }
+
+      .cls-2, .cls-3, .cls-4 {
+        fill: none;
+        stroke: #fff;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-3 {
+        stroke-width: 15px;
+      }
+
+      .cls-4 {
+        stroke-width: 10px;
+      }
+    </style>
+  </defs>
+  <line class="cls-3" x1="512" y1="712.92" x2="512" y2="-2.52"/>
+  <circle class="cls-2" cx="512" cy="817.06" r="102.38"/>
+  <polyline class="cls-2" points="238.57 288.61 512 205.62 785.43 288.61"/>
+  <line class="cls-4" x1="311.3" y1="279.69" x2="311.3" y2="472.18"/>
+  <rect class="cls-1" x="292.74" y="443.75" width="37.12" height="269.17"/>
+  <line class="cls-4" x1="417.46" y1="233.66" x2="417.46" y2="426.16"/>
+  <rect class="cls-1" x="398.9" y="411.08" width="37.12" height="269.17"/>
+  <line class="cls-4" x1="712.7" y1="279.69" x2="712.7" y2="472.18"/>
+  <rect class="cls-1" x="694.14" y="443.75" width="37.12" height="269.17" transform="translate(1425.41 1156.67) rotate(-180)"/>
+  <line class="cls-4" x1="606.54" y1="233.66" x2="606.54" y2="426.16"/>
+  <rect class="cls-1" x="587.98" y="411.08" width="37.12" height="269.17" transform="translate(1213.08 1091.33) rotate(-180)"/>
+  <line class="cls-3" x1="512" y1="72.69" x2="267.96" y2="279.69"/>
+  <line class="cls-3" x1="512" y1="72.69" x2="756.04" y2="279.69"/>
+</svg>

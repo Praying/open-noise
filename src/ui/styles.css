@@ -1,0 +1,348 @@
+/* Open Noise —— 黑白主题(纯黑背景 · 白色文字 · 灰色辅助) */
+
+:root {
+  color-scheme: dark;
+  --toolbar-bg: #000000;
+  --toolbar-pill: #1f1f1f;
+  --content-bg: #000000;
+  --row-hover: #151515;
+  --tile-bg: #0b0b0b;
+  --tile-border: #2c2c2c;
+  --text: #f2f2f2;
+  --text-muted: #8a8a8a;
+  --divider: #1e1e1e;
+  --heart: #f2f2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: #17141c;
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 0;
+}
+
+/* —— 窗口 —— */
+.window {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--content-bg);
+  overflow: hidden;
+}
+
+/* 工具栏固定,列表区滚动(滚动容器必须是 flex 直接子项) */
+#toolbar-slot {
+  flex-shrink: 0;
+}
+
+#list-slot {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a transparent;
+}
+
+#list-slot::-webkit-scrollbar {
+  width: 10px;
+}
+
+#list-slot::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 5px;
+  border: 2px solid var(--content-bg);
+}
+
+#list-slot::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* —— 工具栏 —— */
+.toolbar {
+  background: linear-gradient(180deg, #0c0c0c 0%, var(--toolbar-bg) 100%);
+  border-bottom: 1px solid var(--divider);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 18px;
+  min-height: 64px;
+  flex-shrink: 0;
+}
+
+/* 原生 macOS 红绿灯(Overlay 标题栏)预留空间 */
+.traffic-light-space {
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text);
+}
+
+.transport button {
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  opacity: 0.95;
+}
+
+.transport button:hover { opacity: 1; }
+.transport button svg { width: 26px; height: 26px; display: block; }
+.transport .play-btn svg { width: 30px; height: 30px; }
+
+/* 正在播放:图标块 + 紫色胶囊(相邻不重叠) */
+.now-playing {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 6px;
+}
+
+.now-playing .tile {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: var(--tile-bg);
+  border: 1px solid var(--tile-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.now-playing .tile img {
+  filter: grayscale(1);
+}
+
+.now-playing .tile img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+}
+
+.now-playing .pill {
+  flex: 1;
+  height: 46px;
+  border-radius: 10px;
+  background: var(--toolbar-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 0 18px;
+  min-width: 0;
+}
+
+.now-playing .pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 音量 */
+.volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.volume svg { width: 18px; height: 18px; display: block; }
+.volume .vol-high svg { width: 22px; height: 22px; }
+
+.volume input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 110px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.35);
+  outline: none;
+}
+
+.volume input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 定时器 */
+.timer-btn,
+.lang-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.timer-btn svg,
+.lang-btn svg { width: 24px; height: 24px; display: block; }
+
+/* —— 列表 —— */
+.list {
+  padding-bottom: 24px;
+}
+
+.section-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 18px 22px 8px;
+  letter-spacing: 0.2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 7px 22px;
+  min-height: 56px;
+  cursor: pointer;
+  border-top: 1px solid var(--divider);
+  user-select: none;
+}
+
+.row:hover { background: var(--row-hover); }
+.row.active { background: var(--row-hover); }
+
+.row .tile {
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  background: var(--tile-bg);
+  border: 1px solid var(--tile-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.row .tile img {
+  filter: grayscale(1);
+}
+
+.row .tile img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+}
+
+.row .name {
+  flex: 1;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row .trailing {
+  width: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--heart);
+  flex-shrink: 0;
+}
+
+.row .trailing svg { width: 21px; height: 21px; display: block; }
+
+/* —— 弹层:定时器 / Paywall —— */
+.popover {
+  position: fixed;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 50;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  min-width: 150px;
+}
+
+.popover button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.popover button:hover { background: rgba(255, 255, 255, 0.1); }
+.popover button.selected { background: #f2f2f2; color: #000; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.sheet {
+  background: #0e0e0e;
+  border: 1px solid var(--divider);
+  border-radius: 14px;
+  padding: 28px 32px;
+  width: min(420px, 90vw);
+  text-align: center;
+}
+
+.sheet h2 { margin: 0 0 8px; font-size: 19px; }
+.sheet p { margin: 0 0 18px; color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+
+.sheet button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0 6px;
+}
+
+.sheet .primary { background: #f2f2f2; color: #000; }
+.sheet .secondary { background: #222; color: var(--text); }
