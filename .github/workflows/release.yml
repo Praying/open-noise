@@ -190,19 +190,37 @@ jobs:
           fi
           printf 'keyAlias=%s\nkeyPassword=%s\nstoreFile=%s\nstorePassword=%s\n' \
             "$ALIAS" "$KEY_PASS" "$STORE" "$STORE_PASS" > key.properties
+          {
+            echo "ANDROID_KS_PATH=$STORE"
+            echo "ANDROID_KS_ALIAS=$ALIAS"
+            echo "ANDROID_KS_PASS=$STORE_PASS"
+            echo "ANDROID_KEY_PASS=$KEY_PASS"
+          } >> "$GITHUB_ENV"
 
       - name: Build APK (arm64-v8a)
         run: npx tauri android build --target aarch64 --apk --split-per-abi
 
-      - name: Collect artifacts
+      - name: Sign and collect artifacts
         run: |
           VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
           mkdir -p dist
-          APK=$(find src-tauri/gen/android -name "*arm64-v8a*.apk" | head -1)
-          if [ -z "$APK" ]; then
-            APK=$(find src-tauri/gen/android -name "*release*.apk" ! -name "*unsigned*" | head -1)
-          fi
-          cp "$APK" "dist/Open-Noise_${VERSION}_Android_arm64-v8a.apk"
+          APK=$(find src-tauri/gen/android -path "*outputs/apk*" -name "*.apk" | head -1)
+          echo "found apk: $APK"
+          OUT="dist/Open-Noise_${VERSION}_Android_arm64-v8a.apk"
+          case "$APK" in
+            *unsigned*)
+              BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+              "$BT/zipalign" -f 4 "$APK" aligned.apk
+              "$BT/apksigner" sign \
+                --ks "$ANDROID_KS_PATH" --ks-key-alias "$ANDROID_KS_ALIAS" \
+                --ks-pass pass:"$ANDROID_KS_PASS" --key-pass pass:"$ANDROID_KEY_PASS" \
+                aligned.apk
+              cp aligned.apk "$OUT"
+              ;;
+            *)
+              cp "$APK" "$OUT"
+              ;;
+          esac
           ls -la dist
 
       - uses: actions/upload-artifact@v4
