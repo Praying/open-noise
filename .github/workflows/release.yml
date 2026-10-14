@@ -93,24 +93,24 @@ jobs:
           mkdir -p dist
           case "${{ matrix.name }}" in
             macOS_*)
-              cp "$T"/dmg/*.dmg "dist/Open-Noise_${VERSION}_${{ matrix.name }}.dmg"
+              cp "$T"/dmg/*.dmg "release-assets/Open-Noise_${VERSION}_${{ matrix.name }}.dmg"
               ;;
             Linux_*)
-              cp "$T"/deb/*.deb "dist/Open-Noise_${VERSION}_Linux_amd64.deb"
-              cp "$T"/rpm/*.rpm "dist/Open-Noise_${VERSION}_Linux_amd64.rpm"
-              cp "$T"/appimage/*.AppImage "dist/Open-Noise_${VERSION}_Linux_amd64.AppImage"
+              cp "$T"/deb/*.deb "release-assets/Open-Noise_${VERSION}_Linux_amd64.deb"
+              cp "$T"/rpm/*.rpm "release-assets/Open-Noise_${VERSION}_Linux_amd64.rpm"
+              cp "$T"/appimage/*.AppImage "release-assets/Open-Noise_${VERSION}_Linux_amd64.AppImage"
               ;;
             Windows_*)
-              cp "$T"/nsis/*-setup.exe "dist/Open-Noise_${VERSION}_Windows_x64-setup.exe"
-              cp "$T"/msi/*.msi "dist/Open-Noise_${VERSION}_Windows_x64.msi"
+              cp "$T"/nsis/*-setup.exe "release-assets/Open-Noise_${VERSION}_Windows_x64-setup.exe"
+              cp "$T"/msi/*.msi "release-assets/Open-Noise_${VERSION}_Windows_x64.msi"
               ;;
           esac
-          ls -la dist
+          ls -la release-assets
 
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.name }}
-          path: dist/*
+          path: release-assets/*
           if-no-files-found: error
 
   build-android:
@@ -203,10 +203,10 @@ jobs:
       - name: Sign and collect artifacts
         run: |
           VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          mkdir -p dist
+          mkdir -p release-assets
           APK=$(find src-tauri/gen/android -path "*outputs/apk*" -name "*.apk" | head -1)
           echo "found apk: $APK"
-          OUT="dist/Open-Noise_${VERSION}_Android_arm64-v8a.apk"
+          OUT="release-assets/Open-Noise_${VERSION}_Android_arm64-v8a.apk"
           case "$APK" in
             *unsigned*)
               BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
@@ -221,12 +221,12 @@ jobs:
               cp "$APK" "$OUT"
               ;;
           esac
-          ls -la dist
+          ls -la release-assets
 
       - uses: actions/upload-artifact@v4
         with:
           name: installers-Android_arm64-v8a
-          path: dist/*
+          path: release-assets/*
           if-no-files-found: error
 
   release:
@@ -239,17 +239,18 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: release-assets
           merge-multiple: true
 
       - name: Generate checksums
         run: |
-          cd dist
-          sha256sum * > checksums-sha256.txt
+          cd release-assets
+          find . -maxdepth 1 -type f ! -name 'checksums*' -print0 \
+            | xargs -0 sha256sum | sed 's| \./| |' > checksums-sha256.txt
           cat checksums-sha256.txt
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: release-assets/*
           generate_release_notes: true
           draft: false
