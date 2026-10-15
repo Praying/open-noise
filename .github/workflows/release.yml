@@ -166,6 +166,11 @@ jobs:
       - name: Init Android project
         run: npx tauri android init --ci --skip-targets-install
 
+      - name: Apply app icons to Android project
+        run: |
+          cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
+          ls src-tauri/gen/android/app/src/main/res/mipmap-anydpi-v26/
+
       - name: Configure Android signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
