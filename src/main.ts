@@ -43,6 +43,8 @@ interface AppState {
   volume: number
   timerConfig: TimerConfig
   locale: Locale
+  /** 播放失败文案;非空时显示在工具栏胶囊位 */
+  errorText: string | null
 }
 
 const state: AppState = {
@@ -52,6 +54,7 @@ const state: AppState = {
   volume: loadVolume(storage),
   timerConfig: { kind: 'off' },
   locale: (loadLanguage(storage) as Locale | null) ?? DEFAULT_LOCALE,
+  errorText: null,
 }
 
 interface Engine {
@@ -90,6 +93,7 @@ function render(): void {
         isPlaying: state.isPlaying,
         volume: state.volume,
         messages,
+        errorText: state.errorText,
       },
       {
         onPrev: () => stepNoise(-1),
@@ -133,10 +137,10 @@ function render(): void {
 async function togglePlay(): Promise<void> {
   if (state.isPlaying) {
     stopPlayback()
+    state.errorText = null
     render()
   } else {
-    await startPlayback()
-    render()
+    await startPlayback() // 内部保证收尾 render,失败信息上屏
   }
 }
 
@@ -149,22 +153,46 @@ function stepNoise(direction: -1 | 1): void {
   if (state.isPlaying) void startPlayback()
 }
 
-async function startPlayback(): Promise<void> {
-  const entry = selectedEntry()
-  const { context, masterGain, player } = ensureEngine()
-  await context.resume()
+/** 超时包装:音频上下文 resume 在缺失 GStreamer 插件的环境会永久挂起,不能让 UI 无响应 */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), ms)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
 
+/** 启动请求序号:快速连点/连选时只有最后一次生效 */
+let startGeneration = 0
+
+async function startPlayback(): Promise<void> {
+  const generation = ++startGeneration
+  const messages = getMessages(state.locale)
   try {
+    const entry = selectedEntry()
+    // ensureEngine/resume 必须在 try 内:WebKitGTK 缺 GStreamer 插件时会在这里抛出
+    const { context, masterGain, player } = ensureEngine()
+    await withTimeout(context.resume(), 3_000, messages.audioError)
+
     const url = audioUrl(entry)
     const response = await fetch(url)
-    if (!response.ok) throw new Error(`${getMessages(state.locale).loadError}: ${response.status} ${url}`)
+    if (!response.ok) throw new Error(`${messages.loadError}: ${response.status} ${url}`)
     const data = await response.arrayBuffer()
     let audioBuffer: AudioBuffer
     try {
       audioBuffer = await context.decodeAudioData(data)
     } catch {
-      throw new Error(`${getMessages(state.locale).decodeError} ${url}`)
+      throw new Error(`${messages.decodeError} ${url}`)
     }
+    if (generation !== startGeneration) return // 已被更新的启动请求取代
 
     const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, ch) =>
       audioBuffer.getChannelData(ch).slice(),
@@ -187,11 +215,14 @@ async function startPlayback(): Promise<void> {
     applyVolume()
     player.play(loop, { offsetSeconds, destination: masterGain })
     state.isPlaying = true
+    state.errorText = null
     startTimerLoop()
   } catch (error) {
+    if (generation !== startGeneration) return
     state.isPlaying = false
-    window.alert(error instanceof Error ? error.message : String(error))
+    state.errorText = error instanceof Error ? error.message : String(error)
   }
+  render()
 }
 
 function stopPlayback(): void {

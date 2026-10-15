@@ -27,6 +27,7 @@ export interface Messages {
   stopped: string
   loadError: string
   decodeError: string
+  audioError: string
 }
 
 const MESSAGES: Readonly<Record<Locale, Messages>> = {
@@ -45,6 +46,7 @@ const MESSAGES: Readonly<Record<Locale, Messages>> = {
     stopped: '已停止',
     loadError: '加载音频失败',
     decodeError: '浏览器无法解码',
+    audioError: '无法启动音频引擎',
   },
   en: {
     playTooltip: 'Play/Pause',
@@ -61,6 +63,7 @@ const MESSAGES: Readonly<Record<Locale, Messages>> = {
     stopped: 'Stopped',
     loadError: 'Failed to load audio',
     decodeError: 'Browser cannot decode',
+    audioError: 'Cannot start audio engine',
   },
 }
 

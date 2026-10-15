@@ -20,6 +20,8 @@ describe('i18n', () => {
       'timerTooltip',
       'timerOff',
       'loadError',
+      'decodeError',
+      'audioError',
     ]
     for (const locale of ['zh-Hans', 'en'] as Locale[]) {
       const messages = getMessages(locale)

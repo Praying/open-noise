@@ -166,6 +166,14 @@ body {
   white-space: nowrap;
 }
 
+/* 播放失败:胶囊位显示错误文案,避免静默失败 */
+.now-playing .pill.error {
+  background: #3a1d1d;
+  border: 1px solid #7a3030;
+  color: #ff9c9c;
+  font-weight: 600;
+}
+
 /* 音量 */
 .volume {
   display: flex;

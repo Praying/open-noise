@@ -18,6 +18,8 @@ export interface ToolbarState {
   isPlaying: boolean
   volume: number
   messages: Messages
+  /** 音频引擎/资源错误文案;非空时在胶囊位显示(代替曲目名),保证失败可见 */
+  errorText?: string | null
 }
 
 export interface ToolbarHandlers {
@@ -46,7 +48,9 @@ export function renderToolbar(state: ToolbarState, handlers: ToolbarHandlers): H
     </div>
     <div class="now-playing">
       <div class="tile">${state.nowPlaying ? `<img src="${state.nowPlaying.icon}" alt="">` : ''}</div>
-      <div class="pill"><span>${state.nowPlaying?.name ?? '—'}</span></div>
+      <div class="pill${state.errorText ? ' error' : ''}"><span>${
+        state.errorText ?? state.nowPlaying?.name ?? '—'
+      }</span></div>
     </div>
     <div class="volume">
       <span class="vol-low">${iconVolumeLow()}</span>
